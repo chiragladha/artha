@@ -1,1 +1,16 @@
-/* Full Manifest I got earlier */
+{
+  "name": "Artha",
+  "short_name": "Artha",
+  "description": "Making meaning of your wealth",
+  "start_url": "index.html",
+  "display": "standalone",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
