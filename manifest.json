@@ -1,16 +1,20 @@
 {
-  "name": "Artha",
+  "name": "Artha — Making meaning of your wealth",
   "short_name": "Artha",
-  "description": "Making meaning of your wealth",
-  "start_url": "index.html",
+  "description": "Personal expense dashboard with auto-categorization, analytics, and Google Sheets sync",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "theme_color": "#0f172a",
-  "background_color": "#0f172a",
+  "background_color": "#0a0a14",
+  "theme_color": "#7c6af5",
+  "orientation": "any",
   "icons": [
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["finance", "productivity"]
 }
