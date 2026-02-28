@@ -461,10 +461,12 @@ function renderForecast(mKeys, mTotals, avg, year) {
 
 // ── Credit Cards ───────────────────────────────────────────
 function renderCCPage() {
-  const unpaid = ccTransactions.filter(t => t.status === 'Not Paid');
-  const paid = ccTransactions.filter(t => t.status === 'Paid');
+  const isPaid = t => t.status && t.status.toLowerCase().includes('paid') && !t.status.toLowerCase().includes('not');
+  const isUnpaid = t => !isPaid(t);
+  const unpaid = ccTransactions.filter(isUnpaid);
+  const paid = ccTransactions.filter(isPaid);
   const today = new Date();
-  const dueSoon = unpaid.filter(t => { const d = new Date(t.dueDate); return (d - today) / 86400000 <= 7; }).reduce((s, t) => s + t.amount, 0);
+  const dueSoon = unpaid.filter(t => { const d = new Date(t.dueDate); return d && !isNaN(d) && (d - today) / 86400000 <= 7; }).reduce((s, t) => s + t.amount, 0);
   document.getElementById('cc-total-unpaid').textContent = fmtAmt(unpaid.reduce((s, t) => s + t.amount, 0));
   document.getElementById('cc-due-soon').textContent = fmtAmt(dueSoon);
   document.getElementById('cc-paid-ytd').textContent = fmtAmt(paid.reduce((s, t) => s + t.amount, 0));
@@ -475,12 +477,16 @@ function renderCCPage() {
 
 function renderCCTable() {
   const filter = document.getElementById('cc-filter-status')?.value || '';
-  const list = filter ? ccTransactions.filter(t => t.status === filter) : ccTransactions;
+  const isPaidFn = t => t.status && t.status.toLowerCase().includes('paid') && !t.status.toLowerCase().includes('not');
+  let list = ccTransactions;
+  if (filter === 'Paid') list = ccTransactions.filter(isPaidFn);
+  else if (filter === 'Not Paid' || filter === 'Unpaid') list = ccTransactions.filter(t => !isPaidFn(t));
   const today = new Date();
   document.getElementById('cc-tbody').innerHTML = list.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0)).map(t => {
     const diff = t.dueDate ? Math.ceil((new Date(t.dueDate) - today) / 86400000) : null;
-    const statusCls = t.status === 'Paid' ? 'status-paid' : diff < 0 ? 'status-overdue' : 'status-unpaid';
-    const statusLabel = t.status === 'Paid' ? '✓ Paid' : diff === null ? 'Unpaid' : diff < 0 ? `Overdue ${Math.abs(diff)}d` : `Due in ${diff}d`;
+    const paid = isPaidFn(t);
+    const statusCls = paid ? 'status-paid' : diff < 0 ? 'status-overdue' : 'status-unpaid';
+    const statusLabel = paid ? '✓ Paid' : diff === null ? 'Unpaid' : diff < 0 ? `Overdue ${Math.abs(diff)}d` : `Due in ${diff}d`;
     return `<tr>
       <td class="txn-date">${fmtDate(t.date)}</td>
       <td class="txn-name">${t.expense}</td>
@@ -489,7 +495,7 @@ function renderCCTable() {
       <td class="txn-date">${fmtDate(t.dueDate)}</td>
       <td><span class="${statusCls}">${statusLabel}</span></td>
       <td>
-        ${t.status === 'Not Paid' ? `<button class="btn-ghost btn-sm" onclick="markCCPaid('${t.id}')">Mark Paid</button>` : ''}
+        ${!paid ? `<button class="btn-ghost btn-sm" onclick="markCCPaid('${t.id}')">Mark Paid</button>` : ''}
         <button class="btn-ghost btn-sm btn-icon" onclick="deleteCC('${t.id}')">🗑</button>
       </td>
     </tr>`;
@@ -959,35 +965,62 @@ async function importFromSheets() {
     // ── Import Credit Card tab ──
     showStatus('Importing Credit Card data...');
     try {
-      const table = await tryFetchSheet(['Credit Card', '💳', 'CC', 'Credit Cards']);
+      const table = await tryFetchSheet(['💳', 'Credit Card', 'CREDIT CARD EXPENSE', 'Credit Card Expense', 'CC', 'Credit Cards']);
       let ccImported = 0;
+      console.log('CC tab rows:', table.rows.length, 'cols:', table.cols?.length);
 
-      table.rows.forEach((row, rowIdx) => {
-        if (!row.c || row.c.length < 3) return;
+      // Auto-detect column offset: CC sheet may have empty first column
+      let ccOffset = 0;
+      const firstRow = table.rows[0];
+      if (firstRow?.c) {
+        const c0 = firstRow.c[0];
+        const c1 = firstRow.c[1];
+        // If first cell is empty/null and second cell has a value → offset by 1
+        if ((!c0 || c0.v == null || String(c0.v).trim() === '') && c1 && c1.v != null) {
+          ccOffset = 1;
+        }
+        // Also check if any cell says 'Date' as column header
+        for (let i = 0; i < Math.min(firstRow.c.length, 15); i++) {
+          if (cellVal(firstRow.c[i]).trim().toLowerCase() === 'date') {
+            ccOffset = i;
+            break;
+          }
+        }
+      }
+      console.log(`CC offset: ${ccOffset}`);
 
-        // Try to identify columns based on the CC sheet layout
+      // If first row has header 'Date', skip from row 1; otherwise start from 0
+      const startIdx = (firstRow?.c && cellVal(firstRow.c[ccOffset]).trim().toLowerCase() === 'date') ? 1 : 0;
+
+      for (let rowIdx = startIdx; rowIdx < table.rows.length; rowIdx++) {
+        const row = table.rows[rowIdx];
+        if (!row.c || row.c.length < 3) continue;
+
         const vals = (row.c || []).map(c => cellVal(c).trim());
 
-        // Skip header rows
-        if (vals.some(v => v.toLowerCase() === 'expense' || v.toLowerCase() === 'amount')) return;
+        // Skip title/header rows
+        const joinedLower = vals.join(' ').toLowerCase();
+        if (joinedLower.includes('credit card') || joinedLower.includes('expense') && joinedLower.includes('date') && joinedLower.includes('amount')) continue;
+        if (vals.every(v => !v)) continue;
 
-        // Typical CC layout: Date, Expense, Amount, Card, Paid By, Status, Due Date
-        const rawDate = row.c[0] ? String(row.c[0].v || row.c[0].f || '') : '';
-        const expense = vals[1] || '';
-        const rawAmt = row.c[2] ? (row.c[2].v != null ? row.c[2].v : row.c[2].f) : '';
-        const card = vals[3] || '';
-        const paidBy = vals[4] || '';
-        const status = vals[5] || 'Not Paid';
-        const rawDueDate = row.c[6] ? String(row.c[6].v || row.c[6].f || '') : '';
+        // Read data using offset
+        const o = ccOffset;
+        const rawDate = row.c[o] ? String(row.c[o].v || row.c[o].f || '') : '';
+        const expense = vals[o + 1] || '';
+        const rawAmt = row.c[o + 2] ? (row.c[o + 2].v != null ? row.c[o + 2].v : row.c[o + 2].f) : '';
+        const card = vals[o + 3] || '';
+        const paidBy = vals[o + 4] || '';
+        const status = vals[o + 5] || 'Not Paid';
+        const rawDueDate = row.c[o + 6] ? String(row.c[o + 6].v || row.c[o + 6].f || '') : '';
 
         const amount = typeof rawAmt === 'number' ? rawAmt : parseFloat(String(rawAmt).replace(/[,₹\s]/g, ''));
-        if (!expense || !amount || isNaN(amount)) return;
+        if (!expense || !amount || isNaN(amount)) continue;
 
         const isoDate = parseGoogleDate(rawDate);
         const isoDueDate = parseGoogleDate(rawDueDate);
 
         const existing = ccTransactions.find(t => t.expense === expense && t.amount === amount);
-        if (existing) return;
+        if (existing) continue;
 
         ccTransactions.unshift({
           id: uid(), date: isoDate, expense, amount, card,
@@ -995,7 +1028,7 @@ async function importFromSheets() {
           dueDate: isoDueDate, source: 'sheets_cc'
         });
         ccImported++;
-      });
+      }
       totalImported += ccImported;
       console.log(`✅ Credit Card: ${ccImported} imported`);
     } catch (err) {
@@ -1075,6 +1108,33 @@ function clearAndResync() {
   petrolEntries = [];
   save();
   importFromSheets();
+}
+
+// ── Manual Sync (from sidebar button) ──────────────────────
+async function manualSync() {
+  const btn = document.getElementById('btn-sync-sheets');
+  const statusEl = document.getElementById('sync-status');
+  if (btn.disabled) return;
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+  </svg> Syncing...`;
+  statusEl.textContent = 'Syncing from Google Sheets...';
+
+  try {
+    await importFromSheets();
+    showToast('✅ Sync complete!', 'success');
+  } catch (err) {
+    showToast('❌ Sync failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+      <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+    </svg> Sync Now`;
+  }
 }
 
 // ── Modals ─────────────────────────────────────────────────
