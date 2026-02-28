@@ -1,12 +1,326 @@
-function onOpen() {
-  var ui = SpreadsheetApp.getUi();
-  ui.createMenu('Artha Sync')
-      .addItem('Sync Gmail Transactions', 'syncGmailTransactions')
-      .addToUi();
+/**
+ * ============================================================
+ * Artha — Gmail → Google Sheets Auto-Sync
+ * Google Apps Script
+ * ============================================================
+ * 
+ * This script runs inside Google Sheets (via Extensions > Apps Script).
+ * It reads your Gmail for UPI and Credit Card transaction emails,
+ * extracts the amounts and merchant names, and writes them to your
+ * expense sheet automatically.
+ * 
+ * SETUP:
+ * 1. Open your Artha Google Sheet
+ * 2. Go to Extensions → Apps Script
+ * 3. Delete any existing code and paste this entire file
+ * 4. Click Save (💾)
+ * 5. Run the function "syncGmailToSheet" once manually to grant permissions
+ * 6. Go to Triggers (⏰ icon) → Add Trigger:
+ *    - Choose function: syncGmailToSheet
+ *    - Event source: Time-driven
+ *    - Type: Minutes timer → Every 15 minutes (or your preference)
+ * 7. Click Save
+ * 
+ * The script will now automatically check your Gmail every 15 minutes
+ * and add new transactions to your sheet!
+ * ============================================================
+ */
+
+// ── Configuration ──────────────────────────────────────────
+const CONFIG = {
+  // Which sheet tab to write expenses to (current year)
+  EXPENSE_SHEET: '2026',
+  
+  // How far back to look for emails (in days)
+  LOOKBACK_DAYS: 7,
+  
+  // Gmail search queries for transaction emails
+  SEARCH_QUERIES: [
+    // UPI Transactions
+    'subject:"UPI transaction" newer_than:7d',
+    'subject:"money has been debited" newer_than:7d',
+    'subject:"sent Rs" newer_than:7d',
+    'subject:"debited from" newer_than:7d',
+    'subject:"Payment of Rs" newer_than:7d',
+    'subject:"paid to" newer_than:7d',
+    
+    // Credit Card Transactions
+    'subject:"credit card" subject:"transaction" newer_than:7d',
+    'subject:"card ending" subject:"debited" newer_than:7d',
+    'subject:"has been used" newer_than:7d',
+    'subject:"credit card" subject:"spent" newer_than:7d',
+    
+    // Bank Debit Alerts
+    'subject:"debited" subject:"INR" newer_than:7d',
+    'subject:"withdrawn" newer_than:7d',
+    
+    // Google Pay
+    'from:noreply@google.com subject:"You paid" newer_than:7d',
+    'from:noreply@google.com subject:"sent" newer_than:7d',
+    
+    // PhonePe
+    'from:support@phonepe.com subject:"Payment" newer_than:7d',
+    
+    // Paytm
+    'from:noreply@paytm.com subject:"paid" newer_than:7d',
+  ],
+  
+  // Patterns to extract amount from email body/subject
+  AMOUNT_PATTERNS: [
+    /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /(?:debited|paid|sent|spent|charged)\s*(?:Rs\.?|INR|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:has been debited|was debited)/i,
+    /amount\s*(?:of\s*)?(?:Rs\.?|INR|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+  ],
+  
+  // Patterns to extract merchant/payee name
+  MERCHANT_PATTERNS: [
+    /(?:paid to|sent to|transferred to|paid)\s+(.+?)(?:\s+on|\s+via|\s+using|\s+from|\.|$)/i,
+    /(?:at|to)\s+(.+?)(?:\s+on|\s+using|\s+for|\.|$)/i,
+    /VPA\s*[:\-]?\s*(\S+)/i,
+    /merchant\s*[:\-]?\s*(.+?)(?:\s+on|\.|$)/i,
+    /(?:UPI|NEFT|IMPS)\/\S+\/(.+?)(?:\/|$)/i,
+  ],
+  
+  // Mode detection patterns
+  MODE_PATTERNS: {
+    'Credit Card': /credit\s*card|card\s+ending|visa|mastercard|rupay/i,
+    'UPI': /upi|gpay|phonepe|paytm|bhim|google\s*pay/i,
+    'Bank - NACH': /nach|ecs|auto.?debit|standing.?instruction|si\s/i,
+    'NEFT': /neft/i,
+    'IMPS': /imps/i,
+  },
+  
+  // Category auto-detection keywords (same as Artha app)
+  CATEGORY_KEYWORDS: {
+    'Food': ['swiggy', 'zomato', 'lunch', 'dinner', 'breakfast', 'food', 'restaurant', 'cafe', 'coffee', 'pizza', 'burger', 'biryani', 'chai', 'tea', 'meal', 'eat', 'maggi', 'dominos', 'mcdonalds', 'kfc', 'starbucks', 'chaayos'],
+    'Travel': ['uber', 'ola', 'rapido', 'metro', 'irctc', 'train', 'flight', 'bus', 'cab', 'auto', 'makemytrip', 'goibibo', 'cleartrip', 'redbus'],
+    'Investment': ['sip', 'mutual fund', 'zerodha', 'groww', 'coin', 'mf', 'stock', 'investment', 'nps'],
+    'Rent': ['rent', 'house', 'flat', 'pg', 'accomodation', 'landlord'],
+    'Tech': ['spotify', 'netflix', 'amazon prime', 'hotstar', 'youtube', 'apple', 'google', 'aws', 'hosting', 'domain', 'github', 'icloud'],
+    'Experience': ['movie', 'concert', 'event', 'bookmyshow', 'pvr', 'inox', 'theatre', 'gaming'],
+    'Lifestyle': ['gym', 'shopping', 'clothes', 'myntra', 'ajio', 'nykaa', 'flipkart', 'amazon', 'salon', 'healthcare', 'medicine', 'pharmeasy'],
+    'Credit Card Spends': ['credit card bill', 'cc bill', 'hdfc card', 'icici card', 'sbi card', 'axis card', 'credit card payment', 'hdfc loan'],
+  },
+};
+
+// ── Main Function ──────────────────────────────────────────
+function syncGmailToSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.EXPENSE_SHEET);
+  
+  if (!sheet) {
+    Logger.log('ERROR: Sheet "' + CONFIG.EXPENSE_SHEET + '" not found!');
+    return;
+  }
+  
+  // Get existing entries to avoid duplicates
+  const existingData = sheet.getDataRange().getValues();
+  const existingKeys = new Set();
+  existingData.forEach(row => {
+    if (row[1] && row[2] && row[3]) {
+      // Key = date + name + amount
+      const key = formatDate(row[1]) + '|' + String(row[2]).trim().toLowerCase() + '|' + String(row[3]);
+      existingKeys.add(key);
+    }
+  });
+  
+  let newEntries = [];
+  let processedMessageIds = getProcessedIds();
+  
+  // Search Gmail for transaction emails
+  CONFIG.SEARCH_QUERIES.forEach(query => {
+    try {
+      const threads = GmailApp.search(query, 0, 50);
+      threads.forEach(thread => {
+        const messages = thread.getMessages();
+        messages.forEach(message => {
+          const msgId = message.getId();
+          if (processedMessageIds.has(msgId)) return; // Already processed
+          
+          const entry = parseTransactionEmail(message);
+          if (entry && entry.amount > 0) {
+            const key = entry.date + '|' + entry.name.toLowerCase() + '|' + entry.amount;
+            if (!existingKeys.has(key)) {
+              newEntries.push(entry);
+              existingKeys.add(key);
+            }
+          }
+          processedMessageIds.add(msgId);
+        });
+      });
+    } catch (e) {
+      Logger.log('Search error for "' + query + '": ' + e.message);
+    }
+  });
+  
+  // Write new entries to sheet
+  if (newEntries.length > 0) {
+    // Sort by date
+    newEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Find the last row with data
+    const lastRow = sheet.getLastRow();
+    
+    newEntries.forEach(entry => {
+      const dateParts = entry.date.split('-');
+      const month = getMonthName(parseInt(dateParts[1]));
+      const dateStr = dateParts[2] + '/' + dateParts[1]; // DD/MM format
+      
+      sheet.appendRow([
+        month,            // Column A: Month
+        dateStr,          // Column B: Date (DD/MM)
+        entry.name,       // Column C: Name
+        entry.amount,     // Column D: Amount
+        entry.mode,       // Column E: Mode
+      ]);
+    });
+    
+    Logger.log('✅ Added ' + newEntries.length + ' new transactions');
+  } else {
+    Logger.log('ℹ️ No new transactions found');
+  }
+  
+  // Save processed message IDs
+  saveProcessedIds(processedMessageIds);
 }
 
-function syncGmailTransactions() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var threads = GmailApp.search('label:bank-alerts after:2025/01/01');
-  // Logic to parse threads and append to sheet
+// ── Email Parser ───────────────────────────────────────────
+function parseTransactionEmail(message) {
+  const subject = message.getSubject();
+  const body = message.getPlainBody();
+  const fullText = subject + ' ' + body;
+  const date = message.getDate();
+  
+  // Extract amount
+  let amount = 0;
+  for (const pattern of CONFIG.AMOUNT_PATTERNS) {
+    const match = fullText.match(pattern);
+    if (match) {
+      amount = parseFloat(match[1].replace(/,/g, ''));
+      if (amount > 0) break;
+    }
+  }
+  
+  if (!amount || amount <= 0) return null;
+  
+  // Extract merchant name
+  let name = 'Unknown';
+  for (const pattern of CONFIG.MERCHANT_PATTERNS) {
+    const match = fullText.match(pattern);
+    if (match) {
+      name = match[1].trim().substring(0, 50); // Limit length
+      // Clean up the name
+      name = name.replace(/[<>]/g, '').trim();
+      if (name.length > 2) break;
+    }
+  }
+  
+  // If still unknown, try to get from subject
+  if (name === 'Unknown' || name.length <= 2) {
+    name = subject.replace(/^(Re:|Fwd:)\s*/i, '').substring(0, 50).trim();
+  }
+  
+  // Detect mode
+  let mode = 'UPI'; // Default
+  for (const [modeName, pattern] of Object.entries(CONFIG.MODE_PATTERNS)) {
+    if (pattern.test(fullText)) {
+      mode = modeName;
+      break;
+    }
+  }
+  
+  const isoDate = Utilities.formatDate(date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  
+  return {
+    date: isoDate,
+    name: name,
+    amount: amount,
+    mode: mode,
+    category: categorise(name),
+  };
+}
+
+// ── Categorization ─────────────────────────────────────────
+function categorise(name) {
+  const lower = name.toLowerCase();
+  for (const [category, keywords] of Object.entries(CONFIG.CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => lower.includes(kw))) {
+      return category;
+    }
+  }
+  return 'Others';
+}
+
+// ── Helper Functions ───────────────────────────────────────
+function formatDate(dateVal) {
+  if (dateVal instanceof Date) {
+    return Utilities.formatDate(dateVal, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(dateVal);
+}
+
+function getMonthName(monthNum) {
+  const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[monthNum] || '';
+}
+
+// Store processed email IDs in Script Properties to avoid re-processing
+function getProcessedIds() {
+  const props = PropertiesService.getScriptProperties();
+  const stored = props.getProperty('processedEmailIds') || '[]';
+  return new Set(JSON.parse(stored));
+}
+
+function saveProcessedIds(ids) {
+  const props = PropertiesService.getScriptProperties();
+  const arr = Array.from(ids);
+  // Keep only last 5000 IDs to avoid property size limits
+  const trimmed = arr.slice(-5000);
+  props.setProperty('processedEmailIds', JSON.stringify(trimmed));
+}
+
+// ── Manual Trigger ─────────────────────────────────────────
+// Run this function to do a one-time sync
+function manualSync() {
+  syncGmailToSheet();
+  SpreadsheetApp.getUi().alert('Sync complete! Check the ' + CONFIG.EXPENSE_SHEET + ' tab.');
+}
+
+// ── Menu ───────────────────────────────────────────────────
+// Adds an "Artha" menu to your Google Sheet
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('💰 Artha')
+    .addItem('Sync Gmail Now', 'manualSync')
+    .addItem('Setup Auto-Sync (every 15 min)', 'setupTrigger')
+    .addItem('Remove Auto-Sync', 'removeTrigger')
+    .addToUi();
+}
+
+function setupTrigger() {
+  // Remove existing triggers first
+  removeTrigger();
+  
+  // Create new time-based trigger
+  ScriptApp.newTrigger('syncGmailToSheet')
+    .timeBased()
+    .everyMinutes(15)
+    .create();
+  
+  SpreadsheetApp.getUi().alert(
+    '✅ Auto-sync enabled!\n\n' +
+    'Gmail will be checked every 15 minutes.\n' +
+    'New transactions will automatically appear in your "' + CONFIG.EXPENSE_SHEET + '" sheet.\n\n' +
+    'Artha dashboard will pick them up on next sync.'
+  );
+}
+
+function removeTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'syncGmailToSheet') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
 }
