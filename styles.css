@@ -1486,6 +1486,15 @@ code {
 }
 
 /* ===========================
+   MOBILE ELEMENTS (hidden on desktop)
+   =========================== */
+.mobile-header,
+.mobile-nav,
+.sidebar-overlay {
+    display: none;
+}
+
+/* ===========================
    RESPONSIVE
    =========================== */
 @media (max-width: 1100px) {
@@ -1515,20 +1524,304 @@ code {
         --sidebar-w: 0px;
     }
 
+    /* ── Hide desktop sidebar, show mobile nav ── */
     .sidebar {
-        display: none;
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 1001;
+        transition: left 0.3s ease;
+        display: flex;
     }
 
+    .sidebar.mobile-open {
+        left: 0;
+    }
+
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    /* ── Mobile Header ── */
+    .mobile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 56px;
+        background: var(--sidebar);
+        border-bottom: 1px solid var(--border);
+        padding: 0 16px;
+        z-index: 999;
+    }
+
+    .mobile-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .mobile-title {
+        font-size: 18px;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--accent-light), #b44df5);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hamburger {
+        width: 32px;
+        height: 32px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        padding: 4px;
+    }
+
+    .hamburger span {
+        display: block;
+        width: 20px;
+        height: 2px;
+        background: var(--text);
+        border-radius: 2px;
+        transition: 0.25s;
+    }
+
+    /* ── Mobile Bottom Nav ── */
+    .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        background: var(--sidebar);
+        border-top: 1px solid var(--border);
+        z-index: 999;
+        padding: 0 4px;
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .mobile-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 10px;
+        font-weight: 500;
+        transition: color 0.2s;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-nav-item.active {
+        color: var(--accent-light);
+    }
+
+    .mobile-nav-item svg {
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .mobile-nav-item.active svg {
+        opacity: 1;
+        stroke: var(--accent-light);
+    }
+
+    /* ── Main Content adjustments ── */
     .main {
         margin-left: 0;
-        padding: 20px;
+        padding: 68px 14px 80px;
+        /* top: header+gap, bottom: nav+gap */
     }
 
+    .page-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .page-header h1 {
+        font-size: 22px;
+    }
+
+    .page-header-actions {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+    }
+
+    /* ── Stats cards: 2 per row, smaller ── */
     .stats-grid {
         grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 14px;
+    }
+
+    .stat-label {
+        font-size: 9px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .stat-sub {
+        font-size: 10px;
+    }
+
+    /* ── Dashboard body single column ── */
+    .dashboard-body {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .dashboard-side {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    /* ── Cards smaller ── */
+    .card {
+        padding: 16px;
+    }
+
+    .card-header h2 {
+        font-size: 15px;
+    }
+
+    /* ── Tables: horizontal scroll ── */
+    .table-wrapper,
+    .txn-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* ── Modals ── */
+    .modal {
+        margin: 12px;
+        padding: 20px;
+        border-radius: 14px;
+        max-height: 85vh;
     }
 
     .form-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* ── Toast ── */
+    .toast {
+        left: 14px;
+        right: 14px;
+        max-width: none;
+        bottom: 80px;
+    }
+
+    /* ── Charts responsive ── */
+    .chart-container canvas {
+        max-height: 250px;
+    }
+
+    /* ── Analytics ── */
+    .analytics-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    /* ── Settings ── */
+    .settings-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .settings-card {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .keyword-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .keyword-cat-label {
+        width: auto;
+    }
+
+    /* ── Money Owed ── */
+    .owed-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* ── Buttons ── */
+    .btn-primary,
+    .btn-outline,
+    .btn-ghost {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    .btn-sm {
+        padding: 7px 12px;
+        font-size: 12px;
+    }
+
+    /* ── Sync overlay ── */
+    .sync-card {
+        padding: 30px 24px;
+    }
+
+    /* ── Sidebar footer on mobile ── */
+    .sidebar-footer {
+        padding: 16px;
+    }
+}
+
+/* Extra small phones */
+@media (max-width: 400px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 12px;
+    }
+
+    .main {
+        padding: 64px 10px 76px;
+    }
+
+    .page-header h1 {
+        font-size: 20px;
     }
 }
