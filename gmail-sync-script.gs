@@ -36,33 +36,44 @@ const CONFIG = {
   
   // Gmail search queries for transaction emails
   SEARCH_QUERIES: [
-    // UPI Transactions
-    'subject:"UPI transaction" newer_than:7d',
+    // ── HDFC Bank (primary bank) ──
+    'from:alerts@hdfcbank.bank.in newer_than:7d',
+    'from:alerts@hdfcbank.net newer_than:7d',
+    'subject:"UPI txn" newer_than:7d',
+    'subject:"debited from your account" newer_than:7d',
+    'subject:"debited from account" newer_than:7d',
+    
+    // ── Generic Bank Debit Alerts ──
+    'subject:"has been debited" newer_than:7d',
     'subject:"money has been debited" newer_than:7d',
-    'subject:"sent Rs" newer_than:7d',
     'subject:"debited from" newer_than:7d',
+    'subject:"UPI transaction" newer_than:7d',
+    'subject:"sent Rs" newer_than:7d',
     'subject:"Payment of Rs" newer_than:7d',
     'subject:"paid to" newer_than:7d',
+    'subject:"transaction alert" newer_than:7d',
+    'subject:"debit alert" newer_than:7d',
     
-    // Credit Card Transactions
+    // ── Credit Card Transactions ──
     'subject:"credit card" subject:"transaction" newer_than:7d',
-    'subject:"card ending" subject:"debited" newer_than:7d',
+    'subject:"card ending" newer_than:7d',
     'subject:"has been used" newer_than:7d',
     'subject:"credit card" subject:"spent" newer_than:7d',
     
-    // Bank Debit Alerts
-    'subject:"debited" subject:"INR" newer_than:7d',
-    'subject:"withdrawn" newer_than:7d',
+    // ── Other Indian Banks ──
+    'from:alerts@icicibank.com newer_than:7d (subject:debited OR subject:transaction)',
+    'from:alerts@axisbank.com newer_than:7d (subject:debited OR subject:transaction)',
+    'from:alerts@sbi.co.in newer_than:7d (subject:debited OR subject:transaction)',
+    'from:alerts@kotak.com newer_than:7d (subject:debited OR subject:transaction)',
     
-    // Google Pay
+    // ── Google Pay ──
     'from:noreply@google.com subject:"You paid" newer_than:7d',
     'from:noreply@google.com subject:"sent" newer_than:7d',
     
-    // PhonePe
+    // ── PhonePe / Paytm / CRED ──
     'from:support@phonepe.com subject:"Payment" newer_than:7d',
-    
-    // Paytm
     'from:noreply@paytm.com subject:"paid" newer_than:7d',
+    'from:no-reply@cred.club newer_than:7d (subject:paid OR subject:payment)',
   ],
   
   // Patterns to extract amount from email body/subject
@@ -75,11 +86,19 @@ const CONFIG = {
   
   // Patterns to extract merchant/payee name
   MERCHANT_PATTERNS: [
+    // HDFC: "debited from account XXXX to VPA user@bank Name Surname on DD-MM-YY"
+    /to\s+VPA\s+\S+\s+(.+?)\s+on\s+\d/i,
+    // Generic: "paid to Name" / "sent to Name"
     /(?:paid to|sent to|transferred to|paid)\s+(.+?)(?:\s+on|\s+via|\s+using|\s+from|\.|$)/i,
+    // "at Merchant" / "to Merchant"
     /(?:at|to)\s+(.+?)(?:\s+on|\s+using|\s+for|\.|$)/i,
+    // VPA extraction (fallback: use VPA ID as name)
+    /VPA\s*[:\-]?\s*(\S+@\S+)/i,
     /VPA\s*[:\-]?\s*(\S+)/i,
     /merchant\s*[:\-]?\s*(.+?)(?:\s+on|\.|$)/i,
     /(?:UPI|NEFT|IMPS)\/\S+\/(.+?)(?:\/|$)/i,
+    // "credited to / debited to Name"
+    /debited.*?to\s+(.+?)(?:\s+on|\.|$)/i,
   ],
   
   // Mode detection patterns
@@ -154,15 +173,18 @@ function syncGmailToSheet() {
     }
   });
   
-  // Write new entries to sheet
-  if (newEntries.length > 0) {
+  // Write new entries to sheet — ONLY UPI/NEFT/IMPS/Cash, NOT Credit Card
+  const expenseEntries = newEntries.filter(e => {
+    const isCc = e.mode && e.mode.toLowerCase().includes('credit card');
+    if (isCc) Logger.log('⏭ Skipping CC entry (not for expense tab): ' + e.name + ' ₹' + e.amount);
+    return !isCc;
+  });
+
+  if (expenseEntries.length > 0) {
     // Sort by date
-    newEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    expenseEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    // Find the last row with data
-    const lastRow = sheet.getLastRow();
-    
-    newEntries.forEach(entry => {
+    expenseEntries.forEach(entry => {
       const dateParts = entry.date.split('-');
       const month = getMonthName(parseInt(dateParts[1]));
       const dateStr = dateParts[2] + '/' + dateParts[1]; // DD/MM format
@@ -176,9 +198,9 @@ function syncGmailToSheet() {
       ]);
     });
     
-    Logger.log('✅ Added ' + newEntries.length + ' new transactions');
+    Logger.log('✅ Added ' + expenseEntries.length + ' new transactions (CC entries skipped)');
   } else {
-    Logger.log('ℹ️ No new transactions found');
+    Logger.log('ℹ️ No new UPI/expense transactions found');
   }
   
   // Save processed message IDs
