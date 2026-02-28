@@ -169,6 +169,26 @@ body {
     border-top: 1px solid var(--border);
 }
 
+.watermark {
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted2);
+    margin-top: 10px;
+    letter-spacing: 0.02em;
+    opacity: 0.6;
+}
+
+/* CC table horizontal scroll on mobile */
+.cc-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.cc-table-scroll table {
+    min-width: 640px;
+}
+
 .btn-sync {
     width: 100%;
     padding: 10px 14px;
