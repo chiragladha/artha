@@ -904,7 +904,14 @@ async function importFromSheets() {
   };
   showStatus('Connecting to Google Sheets...');
 
-  let totalImported = 0, totalDupes = 0, errors = [];
+  let totalImported = 0, errors = [];
+
+  // ── FULL REPLACE: clear all sheet-sourced data before re-importing ──
+  // This ensures deleted rows in the sheet disappear in Artha,
+  // and CC transactions can't accumulate duplicates.
+  transactions = transactions.filter(t => !t.source || t.source === 'manual' || t.source === 'gmail');
+  ccTransactions = ccTransactions.filter(t => !t.source || t.source === 'manual');
+  save(); // persist cleared state
 
   try {
     // ── Import expense year tabs: 2024, 2025, 2026 ──
@@ -913,7 +920,7 @@ async function importFromSheets() {
       try {
         // Try various possible tab name formats
         const table = await tryFetchSheet([year, `${year} `, ` ${year}`, `2 ${year}`]);
-        let imported = 0, dupes = 0;
+        let imported = 0;
 
         // Column layout from your sheet:
         // A = "Month - YYYY" (skip)
@@ -960,11 +967,8 @@ async function importFromSheets() {
           // Mode
           const mode = cellVal(colE).trim() || 'UPI';
 
-          // Deduplicate
-          const existing = transactions.find(t =>
-            t.date === isoDate && t.name === name && t.amount === amount
-          );
-          if (existing) { dupes++; return; }
+          // Skip CC-mode rows — they belong in the CC tab, not expense tabs
+          if (mode.toLowerCase().includes('credit card')) return;
 
           transactions.unshift({
             id: uid(), date: isoDate, name, amount,
@@ -975,8 +979,7 @@ async function importFromSheets() {
           imported++;
         });
         totalImported += imported;
-        totalDupes += dupes;
-        console.log(`✅ ${year}: ${imported} imported, ${dupes} dupes`);
+        console.log(`✅ ${year}: ${imported} imported`);
       } catch (err) {
         console.warn(`⚠️ Could not import ${year}:`, err.message);
         errors.push(`${year}: ${err.message}`);
