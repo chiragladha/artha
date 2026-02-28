@@ -91,6 +91,10 @@ function save() {
 function navigateTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  // Update mobile bottom nav active state
+  document.querySelectorAll('.mobile-nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
   const pg = document.getElementById('page-' + page);
   const nav = document.getElementById('nav-' + page);
   if (pg) pg.classList.add('active');
@@ -102,11 +106,28 @@ function navigateTo(page) {
   if (page === 'owed') renderOwedPage();
   if (page === 'settings') renderSettings();
   if (page === 'transactions') { renderTransactions(); updateFilterMonth(); }
+  // Close mobile sidebar if open
+  closeMobileSidebar();
 }
 
 document.querySelectorAll('.nav-item').forEach(item => {
   item.addEventListener('click', e => { e.preventDefault(); navigateTo(item.dataset.page); });
 });
+
+// ── Mobile Sidebar Toggle ──────────────────────────────────
+function toggleMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  sidebar.classList.toggle('mobile-open');
+  overlay.classList.toggle('active');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (overlay) overlay.classList.remove('active');
+}
 
 // ── Month Picker ───────────────────────────────────────────
 function buildMonthOptions(selectId, includeAll = false) {
