@@ -105,6 +105,7 @@
                 Sync Now
             </button>
             <div class="sync-status" id="sync-status">Last sync: Never</div>
+            <div class="watermark">Made with ❤️ by Chirag Ladha</div>
         </div>
     </aside>
 
@@ -481,20 +482,22 @@
                         <option value="Paid">Paid</option>
                     </select>
                 </div>
-                <table class="txn-table" id="cc-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Expense</th>
-                            <th>Amount</th>
-                            <th>Card</th>
-                            <th>Due Date</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cc-tbody"></tbody>
-                </table>
+                <div class="cc-table-scroll">
+                    <table class="txn-table" id="cc-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Expense</th>
+                                <th>Amount</th>
+                                <th>Card</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cc-tbody"></tbody>
+                    </table>
+                </div><!-- end cc-table-scroll -->
             </div>
         </div>
 
