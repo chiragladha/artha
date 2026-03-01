@@ -1,0 +1,128 @@
+/**
+ * ============================================================
+ * Artha â€” Gmail â†’ Google Sheets Auto-Sync
+ * Google Apps Script
+ * ============================================================
+ */
+
+const CONFIG = {
+  EXPENSE_SHEET: '2026',
+  LOOKBACK_DAYS: 7,
+  SEARCH_QUERIES: [
+    'from:alerts@hdfcbank.bank.in newer_than:7d',
+    'from:alerts@hdfcbank.net newer_than:7d',
+    'subject:"UPI txn" newer_than:7d',
+    'subject:"debited from your account" newer_than:7d',
+    'from:alerts@icicibank.com newer_than:7d (subject:debited OR subject:transaction)',
+    'from:alerts@axisbank.com newer_than:7d (subject:debited OR subject:transaction)',
+    'from:noreply@google.com subject:"You paid" newer_than:7d',
+    'from:support@phonepe.com subject:"Payment" newer_than:7d',
+  ],
+  AMOUNT_PATTERNS: [
+    /(?:Rs\.?|INR|â‚¹)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /(?:debited|paid|sent|spent|charged)\s*(?:Rs\.?|INR|â‚¹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+  ],
+  MERCHANT_PATTERNS: [
+    /to\s+VPA\s+\S+\s+(.+?)\s+on\s+\d/i,
+    /(?:paid to|sent to|transferred to|paid)\s+(.+?)(?:\s+on|\s+via|\s+using|\s+from|\.|$)/i,
+  ],
+  MODE_PATTERNS: {
+    'Credit Card': /credit\s*card|card\s+ending|visa|mastercard|rupay/i,
+    'UPI': /upi|gpay|phonepe|paytm|bhim|google\s*pay/i,
+  },
+  CATEGORY_KEYWORDS: {
+    'Food': ['swiggy', 'zomato', 'lunch', 'dinner', 'food'],
+    'Travel': ['uber', 'ola', 'irctc'],
+    'Investment': ['sip', 'mutual fund', 'zerodha'],
+  },
+};
+
+function syncGmailToSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.EXPENSE_SHEET);
+  if (!sheet) return;
+  const existingData = sheet.getDataRange().getValues();
+  const existingKeys = new Set();
+  existingData.forEach(row => {
+    if (row[1] && row[2] && row[3]) {
+      const key = formatDate(row[1]) + '|' + String(row[2]).trim().toLowerCase() + '|' + String(row[3]);
+      existingKeys.add(key);
+    }
+  });
+  let newEntries = [];
+  let processedMessageIds = getProcessedIds();
+  CONFIG.SEARCH_QUERIES.forEach(query => {
+    const threads = GmailApp.search(query, 0, 50);
+    threads.forEach(thread => {
+      thread.getMessages().forEach(message => {
+        const msgId = message.getId();
+        if (processedMessageIds.has(msgId)) return;
+        const entry = parseTransactionEmail(message);
+        if (entry && entry.amount > 0) {
+          const key = entry.date + '|' + entry.name.toLowerCase() + '|' + entry.amount;
+          if (!existingKeys.has(key)) {
+            newEntries.push(entry);
+            existingKeys.add(key);
+          }
+        }
+        processedMessageIds.add(msgId);
+      });
+    });
+  });
+  const expenseEntries = newEntries.filter(e => {
+    return !(e.mode && (e.mode.toLowerCase().includes('credit card') || e.mode.toLowerCase().includes('cc')));
+  });
+  if (expenseEntries.length > 0) {
+    expenseEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    expenseEntries.forEach(entry => {
+      const dateParts = entry.date.split('-');
+      const month = getMonthName(parseInt(dateParts[1]));
+      sheet.appendRow([month, dateParts[2] + '/' + dateParts[1], entry.name, entry.amount, entry.mode]);
+    });
+  }
+  saveProcessedIds(processedMessageIds);
+}
+
+function parseTransactionEmail(message) {
+  const fullText = message.getSubject() + ' ' + message.getPlainBody();
+  let amount = 0;
+  for (const pattern of CONFIG.AMOUNT_PATTERNS) {
+    const match = fullText.match(pattern);
+    if (match) { amount = parseFloat(match[1].replace(/,/g, '')); if (amount > 0) break; }
+  }
+  if (!amount) return null;
+  let name = 'Unknown';
+  for (const pattern of CONFIG.MERCHANT_PATTERNS) {
+    const match = fullText.match(pattern);
+    if (match) { name = match[1].trim().substring(0, 50); break; }
+  }
+  let mode = 'UPI';
+  for (const [modeName, pattern] of Object.entries(CONFIG.MODE_PATTERNS)) {
+    if (pattern.test(fullText)) { mode = modeName; break; }
+  }
+  return {
+    date: Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+    name: name,
+    amount: amount,
+    mode: mode,
+  };
+}
+
+function getMonthName(m) {
+  return ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m];
+}
+
+function getProcessedIds() {
+  return new Set(JSON.parse(PropertiesService.getScriptProperties().getProperty('processedEmailIds') || '[]'));
+}
+
+function saveProcessedIds(ids) {
+  PropertiesService.getScriptProperties().setProperty('processedEmailIds', JSON.stringify(Array.from(ids).slice(-5000)));
+}
+
+function manualSync() { syncGmailToSheet(); }
+
+function doGet(e) {
+  try { syncGmailToSheet(); return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON); }
+  catch(err) { return ContentService.createTextOutput(JSON.stringify({ok:false, error:err.message})).setMimeType(ContentService.MimeType.JSON); }
+}
