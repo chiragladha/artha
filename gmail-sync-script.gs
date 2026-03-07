@@ -181,8 +181,17 @@ function syncGmailToSheet() {
       e.mode.toLowerCase().includes('cc') ||
       e.category === 'Credit Card Spends'
     );
-    if (isCc) Logger.log('⏭ Skipping CC entry (not for expense tab): ' + e.name + ' ₹' + e.amount);
     return !isCc;
+  });
+  
+  // Collect CC entries separately
+  const ccEntries = newEntries.filter(e => {
+    const isCc = e.mode && (
+      e.mode.toLowerCase().includes('credit card') || 
+      e.mode.toLowerCase().includes('cc') ||
+      e.category === 'Credit Card Spends'
+    );
+    return isCc;
   });
 
   if (expenseEntries.length > 0) {
@@ -203,13 +212,101 @@ function syncGmailToSheet() {
       ]);
     });
     
-    Logger.log('✅ Added ' + expenseEntries.length + ' new transactions (CC entries skipped)');
+    Logger.log('✅ Added ' + expenseEntries.length + ' new expense transactions');
   } else {
     Logger.log('ℹ️ No new UPI/expense transactions found');
   }
   
+  // ── Write CC entries to 💳 tab ──────────────────────────────
+  if (ccEntries.length > 0) {
+    writeCCEntries(ss, ccEntries);
+  }
+  
   // Save processed message IDs
   saveProcessedIds(processedMessageIds);
+}
+
+// ── Credit Card Entries → 💳 Tab ──────────────────────────────
+// Card number to name mapping
+const CARD_MAP = {
+  '1550': 'Mastercard',
+  '9110': 'Tata Neu',
+};
+
+function detectCard(text) {
+  const lower = text.toLowerCase();
+  for (const [num, name] of Object.entries(CARD_MAP)) {
+    if (lower.includes(num)) return name;
+  }
+  // Try to extract card ending digits
+  const m = lower.match(/card\s*(?:ending|no\.?)\s*(\d{4})/);
+  if (m && CARD_MAP[m[1]]) return CARD_MAP[m[1]];
+  return 'Credit Card';
+}
+
+function writeCCEntries(ss, ccEntries) {
+  // Find or create the CC tab
+  let ccSheet = ss.getSheetByName('💳');
+  if (!ccSheet) {
+    ccSheet = ss.getSheetByName('Credit Card');
+  }
+  if (!ccSheet) {
+    ccSheet = ss.getSheetByName('Credit Card Expense');
+  }
+  if (!ccSheet) {
+    // Create the tab with headers
+    ccSheet = ss.insertSheet('💳');
+    ccSheet.appendRow(['Date', 'Expense', 'Amount', 'Card', 'Paid By', 'Status', 'Due Date']);
+    Logger.log('📋 Created new "💳" sheet tab');
+  }
+  
+  // Get existing CC entries for deduplication
+  const existingData = ccSheet.getDataRange().getValues();
+  const existingKeys = new Set();
+  existingData.forEach(row => {
+    if (row[0] && row[1] && row[2]) {
+      const key = formatDate(row[0]) + '|' + String(row[1]).trim().toLowerCase() + '|' + String(row[2]);
+      existingKeys.add(key);
+    }
+  });
+  
+  let ccAdded = 0;
+  ccEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  ccEntries.forEach(entry => {
+    const key = entry.date + '|' + entry.name.toLowerCase() + '|' + entry.amount;
+    if (existingKeys.has(key)) {
+      Logger.log('⏭ Skipping duplicate CC: ' + entry.name + ' ₹' + entry.amount);
+      return;
+    }
+    
+    const dateParts = entry.date.split('-');
+    const dateStr = dateParts[2] + '/' + dateParts[1]; // DD/MM format
+    
+    // Detect which card from the email text
+    const card = detectCard(entry.name);
+    
+    // Calculate due date (~20 days from transaction)
+    const txnDate = new Date(entry.date);
+    txnDate.setDate(txnDate.getDate() + 20);
+    const dueStr = txnDate.getDate().toString().padStart(2, '0') + '/' + 
+                   (txnDate.getMonth() + 1).toString().padStart(2, '0');
+    
+    ccSheet.appendRow([
+      dateStr,          // Column A: Date (DD/MM)
+      entry.name,       // Column B: Expense
+      entry.amount,     // Column C: Amount
+      card,             // Column D: Card name
+      'Chirag',         // Column E: Paid By (default)
+      'Not Paid',       // Column F: Status
+      dueStr,           // Column G: Due Date (DD/MM)
+    ]);
+    
+    existingKeys.add(key);
+    ccAdded++;
+  });
+  
+  Logger.log('✅ Added ' + ccAdded + ' CC transactions to 💳 tab');
 }
 
 // ── Email Parser ───────────────────────────────────────────
