@@ -1,1 +1,978 @@
-[INDEX_HTML_CONTENT]
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Artha — Making meaning of your wealth</title>
+    <meta name="description"
+        content="Artha is your personal expense intelligence dashboard. Track, categorize and forecast your spending automatically." />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#7c6af5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Artha" />
+    <link rel="apple-touch-icon" href="icon-512.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">₹</div>
+            <div class="logo-text">
+                <span class="logo-name">Artha</span>
+                <span class="logo-tagline">Making meaning of your wealth</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard" id="nav-dashboard">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Dashboard
+            </a>
+            <a href="#" class="nav-item" data-page="transactions" id="nav-transactions">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Transactions
+            </a>
+            <a href="#" class="nav-item" data-page="analytics" id="nav-analytics">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Analytics
+            </a>
+            <a href="#" class="nav-item" data-page="creditcards" id="nav-creditcards">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                    <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+                Credit Cards
+            </a>
+            <a href="#" class="nav-item" data-page="petrol" id="nav-petrol">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 22V8l7-6 7 6v14M9 22v-6h6v6" />
+                    <path d="M17 6l3 2v4l-3 2" />
+                </svg>
+                Petrol
+            </a>
+            <a href="#" class="nav-item" data-page="owed" id="nav-owed">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
+                </svg>
+                Money Owed
+            </a>
+            <a href="#" class="nav-item" data-page="settings" id="nav-settings">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+                Settings
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="btn-sync" id="btn-sync-sheets" onclick="manualSync()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                </svg>
+                Sync Now
+            </button>
+            <div class="sync-status" id="sync-status">Last sync: Never</div>
+            <div class="watermark">Made with ❤️ by Chirag Ladha</div>
+        </div>
+    </aside>
+
+    <!-- Mobile Header -->
+    <header class="mobile-header" id="mobile-header">
+        <div class="mobile-header-left">
+            <button class="hamburger" id="hamburger" onclick="toggleMobileSidebar()">
+                <span></span><span></span><span></span>
+            </button>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <span class="mobile-title">Artha</span>
+                <span class="watermark-mobile">Made with ❤️ by Chirag Ladha</span>
+            </div>
+        </div>
+        <button class="btn-primary btn-sm" onclick="openAddExpenseModal()">+ Add</button>
+    </header>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" id="mobile-nav">
+        <a class="mobile-nav-item active" onclick="navigateTo('dashboard')" data-page="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+            </svg>
+            <span>Home</span>
+        </a>
+        <a class="mobile-nav-item" onclick="navigateTo('transactions')" data-page="transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+            </svg>
+            <span>Txns</span>
+        </a>
+        <a class="mobile-nav-item" onclick="navigateTo('analytics')" data-page="analytics">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+            <span>Stats</span>
+        </a>
+        <a class="mobile-nav-item" onclick="navigateTo('creditcards')" data-page="creditcards">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+            </svg>
+            <span>Cards</span>
+        </a>
+        <a class="mobile-nav-item" onclick="navigateTo('settings')" data-page="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <circle cx="12" cy="12" r="3" />
+                <path
+                    d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+            <span>Settings</span>
+        </a>
+    </nav>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="main" id="main">
+
+        <!-- ===== DASHBOARD PAGE ===== -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-subtitle" id="dashboard-subtitle">February 2026</p>
+                </div>
+                <div class="header-actions">
+                    <select class="month-picker" id="dashboard-month-select" onchange="updateDashboard()">
+                    </select>
+                    <button class="btn-primary" onclick="openAddModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"
+                            height="16">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Expense
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <div class="stat-label">Total Spent</div>
+                    <div class="stat-value" id="stat-total">₹0</div>
+                    <div class="stat-change" id="stat-total-change">vs last month</div>
+                </div>
+                <div class="stat-card stat-largest">
+                    <div class="stat-label">Largest Category</div>
+                    <div class="stat-value" id="stat-largest-cat">—</div>
+                    <div class="stat-change" id="stat-largest-amt">₹0</div>
+                </div>
+                <div class="stat-card stat-txns">
+                    <div class="stat-label">Transactions</div>
+                    <div class="stat-value" id="stat-txn-count">0</div>
+                    <div class="stat-change" id="stat-avg">Avg ₹0/txn</div>
+                </div>
+                <div class="stat-card stat-forecast">
+                    <div class="stat-label">Projected Month</div>
+                    <div class="stat-value" id="stat-forecast">₹0</div>
+                    <div class="stat-change" id="stat-forecast-note">Based on this month's pace</div>
+                </div>
+            </div>
+
+            <!-- Charts + Right panel -->
+            <div class="dashboard-body">
+                <div class="dashboard-left">
+                    <!-- Category Donut -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Spending by Category</h3>
+                            <span class="badge" id="donut-month-label">This Month</span>
+                        </div>
+                        <div class="donut-wrapper">
+                            <canvas id="donutChart"></canvas>
+                            <div class="donut-center" id="donut-center">
+                                <div class="donut-total" id="donut-total-amt">₹0</div>
+                                <div class="donut-label">Total</div>
+                            </div>
+                        </div>
+                        <div class="legend" id="donut-legend"></div>
+                    </div>
+
+                    <!-- Monthly Trend -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Monthly Trend</h3>
+                            <span class="badge">Last 6 months</span>
+                        </div>
+                        <canvas id="trendChart" height="160"></canvas>
+                    </div>
+                </div>
+
+                <div class="dashboard-right">
+                    <!-- CC Dues -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Credit Card Dues</h3>
+                            <a href="#" onclick="navigateTo('creditcards')" class="card-link">View all →</a>
+                        </div>
+                        <div id="cc-dues-list" class="dues-list"></div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Transactions</h3>
+                            <a href="#" onclick="navigateTo('transactions')" class="card-link">View all →</a>
+                        </div>
+                        <div id="recent-txns" class="recent-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TRANSACTIONS PAGE ===== -->
+        <div class="page" id="page-transactions">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Transactions</h1>
+                    <p class="page-subtitle" id="txn-count-label">0 transactions</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="openImportModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15"
+                            height="15">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Import CSV
+                    </button>
+                    <button class="btn-primary" onclick="openAddModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"
+                            height="16">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Expense
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-bar">
+                <input type="text" class="filter-input" id="search-input"
+                    placeholder="🔍  Search by name or merchant..." oninput="filterTransactions()" />
+                <select class="filter-select" id="filter-category" onchange="filterTransactions()">
+                    <option value="">All Categories</option>
+                    <option value="Food">Food</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Investment">Investment</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Tech">Tech</option>
+                    <option value="Experience">Experience</option>
+                    <option value="Lifestyle">Lifestyle</option>
+                    <option value="Credit Card Spends">Credit Card Spends</option>
+                    <option value="Others">Others</option>
+                </select>
+                <select class="filter-select" id="filter-mode" onchange="filterTransactions()">
+                    <option value="">All Modes</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Manual">Manual</option>
+                </select>
+                <select class="filter-select" id="filter-month" onchange="filterTransactions()">
+                    <option value="">All Time</option>
+                </select>
+                <button class="btn-ghost" onclick="clearFilters()">Clear</button>
+            </div>
+
+            <!-- Transactions Table -->
+            <div class="card table-card">
+                <table class="txn-table" id="txn-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortBy('date')">Date <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('name')">Name <span class="sort-arrow">↕</span></th>
+                            <th onclick="sortBy('amount')">Amount <span class="sort-arrow">↕</span></th>
+                            <th>Mode</th>
+                            <th>Category</th>
+                            <th>Source</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txn-tbody">
+                    </tbody>
+                </table>
+                <div class="table-empty" id="table-empty" style="display:none">
+                    <div class="empty-icon">📭</div>
+                    <p>No transactions found. Add your first one!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ANALYTICS PAGE ===== -->
+        <div class="page" id="page-analytics">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Analytics</h1>
+                    <p class="page-subtitle">Insights & Forecasts</p>
+                </div>
+                <div class="header-actions">
+                    <select class="filter-select" id="analytics-year" onchange="updateAnalytics()">
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Forecast Summary -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">YTD Spent</div>
+                    <div class="stat-value" id="ytd-spent">₹0</div>
+                    <div class="stat-change" id="ytd-note">Year to date</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Projected Annual</div>
+                    <div class="stat-value" id="projected-annual">₹0</div>
+                    <div class="stat-change">At current pace</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Monthly Average</div>
+                    <div class="stat-value" id="monthly-avg">₹0</div>
+                    <div class="stat-change">Across all months</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Best Month</div>
+                    <div class="stat-value" id="best-month">—</div>
+                    <div class="stat-change" id="best-month-amt">Lowest spend</div>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <!-- Monthly bar chart -->
+                <div class="card analytics-wide">
+                    <div class="card-header">
+                        <h3>Monthly Spending</h3>
+                        <div class="chart-legend-inline" id="monthly-bar-legend"></div>
+                    </div>
+                    <canvas id="monthlyBarChart" height="200"></canvas>
+                </div>
+
+                <!-- Category Trend Lines -->
+                <div class="card analytics-wide">
+                    <div class="card-header">
+                        <h3>Category Trends</h3>
+                        <span class="badge">Last 12 months</span>
+                    </div>
+                    <canvas id="categoryTrendChart" height="200"></canvas>
+                </div>
+
+                <!-- MoM Table -->
+                <div class="card analytics-half">
+                    <div class="card-header">
+                        <h3>Month-over-Month Change</h3>
+                    </div>
+                    <div id="mom-table-container"></div>
+                </div>
+
+                <!-- Top Merchants -->
+                <div class="card analytics-half">
+                    <div class="card-header">
+                        <h3>Top Merchants</h3>
+                        <span class="badge">By amount</span>
+                    </div>
+                    <div id="top-merchants-list"></div>
+                </div>
+
+                <!-- Forecast -->
+                <div class="card analytics-wide">
+                    <div class="card-header">
+                        <h3>Spending Forecast</h3>
+                        <span class="badge success">12-Month Projection</span>
+                    </div>
+                    <canvas id="forecastChart" height="180"></canvas>
+                    <p class="forecast-note">Forecast based on 3-month rolling average. Shaded area shows ±15% variance.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CREDIT CARDS PAGE ===== -->
+        <div class="page" id="page-creditcards">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Credit Cards</h1>
+                    <p class="page-subtitle" id="cc-subtitle">Track your card spends & dues</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openAddCCModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"
+                            height="16">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add CC Expense
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Unpaid</div>
+                    <div class="stat-value danger" id="cc-total-unpaid">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Due Within 7 Days</div>
+                    <div class="stat-value warning" id="cc-due-soon">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Paid (YTD)</div>
+                    <div class="stat-value success" id="cc-paid-ytd">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Cards</div>
+                    <div class="stat-value" id="cc-active-cards">0</div>
+                </div>
+            </div>
+
+            <div class="card table-card">
+                <div class="card-header">
+                    <h3>Card Transactions</h3>
+                    <select class="filter-select" id="cc-filter-status" onchange="renderCCTable()">
+                        <option value="">All</option>
+                        <option value="Not Paid">Unpaid</option>
+                        <option value="Paid">Paid</option>
+                    </select>
+                </div>
+                <div class="cc-table-scroll">
+                    <table class="txn-table" id="cc-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Expense</th>
+                                <th>Amount</th>
+                                <th>Card</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cc-tbody"></tbody>
+                    </table>
+                </div><!-- end cc-table-scroll -->
+            </div>
+        </div>
+
+        <!-- ===== PETROL PAGE ===== -->
+        <div class="page" id="page-petrol">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Petrol Tracker</h1>
+                    <p class="page-subtitle">Fuel costs & mileage efficiency</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openAddPetrolModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"
+                            height="16">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Fuel Entry
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Fuel Spend</div>
+                    <div class="stat-value" id="petrol-total">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Mileage</div>
+                    <div class="stat-value" id="petrol-mileage">0 km/L</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Rate</div>
+                    <div class="stat-value" id="petrol-rate">₹0/L</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total KMs</div>
+                    <div class="stat-value" id="petrol-kms">0 km</div>
+                </div>
+            </div>
+
+            <div class="dashboard-body">
+                <div class="dashboard-left">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Mileage Over Time</h3>
+                        </div>
+                        <canvas id="mileageChart" height="200"></canvas>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Fuel Rate History</h3>
+                        </div>
+                        <canvas id="fuelRateChart" height="160"></canvas>
+                    </div>
+                </div>
+                <div class="dashboard-right">
+                    <div class="card table-card">
+                        <div class="card-header">
+                            <h3>Fuel Entries</h3>
+                        </div>
+                        <table class="txn-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Rate</th>
+                                    <th>Litres</th>
+                                    <th>KMs</th>
+                                    <th>Mileage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="petrol-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MONEY OWED PAGE ===== -->
+        <div class="page" id="page-owed">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Money Owed to Me</h1>
+                    <p class="page-subtitle" id="owed-subtitle">Track who owes you</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-primary" onclick="openAddOwedModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"
+                            height="16">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Entry
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Owed to You</div>
+                    <div class="stat-value warning" id="owed-total">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">People</div>
+                    <div class="stat-value" id="owed-people">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Recovered (YTD)</div>
+                    <div class="stat-value success" id="owed-recovered">₹0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Reminders Sent</div>
+                    <div class="stat-value" id="owed-reminders">0</div>
+                </div>
+            </div>
+
+            <div id="owed-cards" class="owed-grid"></div>
+        </div>
+
+        <!-- ===== SETTINGS PAGE ===== -->
+        <div class="page" id="page-settings">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Settings</h1>
+                    <p class="page-subtitle">Configure Artha</p>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <!-- Gmail Integration -->
+                <div class="card settings-card">
+                    <div class="settings-icon-wrapper gmail">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"
+                            height="22">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                    </div>
+                    <div class="settings-content">
+                        <h3>Gmail Integration</h3>
+                        <p>Automatically fetch UPI and Credit Card transaction emails</p>
+                        <div class="settings-status" id="gmail-status">
+                            <span class="status-dot disconnected"></span> Not Connected
+                        </div>
+                        <div class="settings-actions">
+                            <button class="btn-primary" onclick="setupGmail()">Connect Gmail (OAuth)</button>
+                        </div>
+                        <div class="settings-guide" id="gmail-guide">
+                            <h4>Setup Steps:</h4>
+                            <ol>
+                                <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud
+                                        Console</a></li>
+                                <li>Create a new project named "Artha"</li>
+                                <li>Enable <strong>Gmail API</strong> and <strong>Google Sheets API</strong></li>
+                                <li>Go to Credentials → Create OAuth 2.0 Client ID</li>
+                                <li>Download JSON and paste the Client ID & Secret below</li>
+                            </ol>
+                            <div class="form-group">
+                                <label>Client ID</label>
+                                <input type="text" class="form-input" id="gmail-client-id"
+                                    placeholder="xxxxx.apps.googleusercontent.com" />
+                            </div>
+                            <div class="form-group">
+                                <label>Client Secret</label>
+                                <input type="password" class="form-input" id="gmail-client-secret"
+                                    placeholder="Client Secret" />
+                            </div>
+                            <button class="btn-primary" onclick="saveGmailCreds()">Save & Authorize</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Sheets -->
+                <div class="card settings-card">
+                    <div class="settings-icon-wrapper sheets">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"
+                            height="22">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                    </div>
+                    <div class="settings-content">
+                        <h3>Google Sheets Import</h3>
+                        <p>Import historical data from your existing expense sheet</p>
+                        <div class="form-group">
+                            <label>Spreadsheet URL</label>
+                            <input type="text" class="form-input" id="sheets-url"
+                                placeholder="https://docs.google.com/spreadsheets/d/..."
+                                value="https://docs.google.com/spreadsheets/d/1L22_p2ZHMusfzzcXJUfSRVBnrUiA0tCTt9qcwbzJmYg" />
+                        </div>
+                        <div class="settings-actions">
+                            <button class="btn-secondary" onclick="importFromSheets()">Import Historical Data</button>
+                            <button class="btn-primary" onclick="clearAndResync()"
+                                style="background:var(--danger)">Clear & Re-sync</button>
+                        </div>
+                        <div id="sheets-import-status"></div>
+                    </div>
+                </div>
+
+                <!-- Email Reminder Config -->
+                <div class="card settings-card">
+                    <div class="settings-icon-wrapper email">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"
+                            height="22">
+                            <path
+                                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 12 19.79 19.79 0 011.61 3.37a2 2 0 012-2.18h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+                        </svg>
+                    </div>
+                    <div class="settings-content">
+                        <h3>Reminder Email Config</h3>
+                        <p>Configure sender email for automated reminders to people who owe you</p>
+                        <div class="form-group">
+                            <label>Your Email (Sender)</label>
+                            <input type="email" class="form-input" id="sender-email" placeholder="your@gmail.com" />
+                        </div>
+                        <div class="form-group">
+                            <label>App Password (Gmail)</label>
+                            <input type="password" class="form-input" id="email-app-password"
+                                placeholder="xxxx xxxx xxxx xxxx" />
+                        </div>
+                        <small style="color:var(--muted); margin-top:-8px; display:block">Generate at
+                            myaccount.google.com → Security → App Passwords</small>
+                        <div class="settings-actions" style="margin-top:12px">
+                            <button class="btn-primary" onclick="saveEmailConfig()">Save Config</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Keywords -->
+                <div class="card settings-card full-width">
+                    <div class="settings-icon-wrapper cat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22"
+                            height="22">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                    </div>
+                    <div class="settings-content">
+                        <h3>Category Keywords</h3>
+                        <p>Auto-categorization rules — transactions matching these keywords will be auto-assigned</p>
+                        <div id="keyword-editor" class="keyword-editor"></div>
+                        <button class="btn-secondary" onclick="saveKeywords()" style="margin-top:14px">Save
+                            Keywords</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Add Expense Modal -->
+    <div class="modal-overlay" id="modal-add" onclick="closeModalOutside(event, 'modal-add')">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Expense</h2>
+                <button class="modal-close" onclick="closeModal('modal-add')">✕</button>
+            </div>
+            <form onsubmit="saveExpense(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" class="form-input" id="add-date" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Name / Merchant *</label>
+                        <input type="text" class="form-input" id="add-name" placeholder="e.g. Lunch at Starbucks"
+                            required />
+                    </div>
+                    <div class="form-group">
+                        <label>Amount (₹) *</label>
+                        <input type="number" class="form-input" id="add-amount" placeholder="0" min="0" step="0.01"
+                            required />
+                    </div>
+                    <div class="form-group">
+                        <label>Mode</label>
+                        <select class="form-input" id="add-mode">
+                            <option>UPI</option>
+                            <option>Credit Card</option>
+                            <option>Cash</option>
+                            <option>Manual</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select class="form-input" id="add-category">
+                            <option value="">Auto-detect</option>
+                            <option>Food</option>
+                            <option>Travel</option>
+                            <option>Investment</option>
+                            <option>Rent</option>
+                            <option>Tech</option>
+                            <option>Experience</option>
+                            <option>Lifestyle</option>
+                            <option>Credit Card Spends</option>
+                            <option>Others</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-span">
+                        <label>Notes</label>
+                        <input type="text" class="form-input" id="add-notes" placeholder="Optional note..." />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="closeModal('modal-add')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add CC Modal -->
+    <div class="modal-overlay" id="modal-add-cc" onclick="closeModalOutside(event, 'modal-add-cc')">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Credit Card Expense</h2>
+                <button class="modal-close" onclick="closeModal('modal-add-cc')">✕</button>
+            </div>
+            <form onsubmit="saveCCExpense(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Date *</label>
+                        <input type="date" class="form-input" id="cc-add-date" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Expense Name *</label>
+                        <input type="text" class="form-input" id="cc-add-name" placeholder="e.g. Insurance_EMI"
+                            required />
+                    </div>
+                    <div class="form-group">
+                        <label>Amount (₹) *</label>
+                        <input type="number" class="form-input" id="cc-add-amount" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Card</label>
+                        <input type="text" class="form-input" id="cc-add-card" placeholder="e.g. Millennia" />
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" class="form-input" id="cc-add-due" />
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select class="form-input" id="cc-add-status">
+                            <option value="Not Paid">Not Paid</option>
+                            <option value="Paid">Paid</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="closeModal('modal-add-cc')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Petrol Modal -->
+    <div class="modal-overlay" id="modal-add-petrol" onclick="closeModalOutside(event, 'modal-add-petrol')">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Fuel Entry</h2>
+                <button class="modal-close" onclick="closeModal('modal-add-petrol')">✕</button>
+            </div>
+            <form onsubmit="savePetrolEntry(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>Date *</label><input type="date" class="form-input" id="p-date"
+                            required /></div>
+                    <div class="form-group"><label>Amount Paid (₹) *</label><input type="number" class="form-input"
+                            id="p-amount" required /></div>
+                    <div class="form-group"><label>Rate (₹/L)</label><input type="number" class="form-input" id="p-rate"
+                            step="0.01" /></div>
+                    <div class="form-group"><label>Litres</label><input type="number" class="form-input" id="p-litres"
+                            step="0.01" /></div>
+                    <div class="form-group"><label>Meter Start (km)</label><input type="number" class="form-input"
+                            id="p-start" /></div>
+                    <div class="form-group"><label>Meter End (km)</label><input type="number" class="form-input"
+                            id="p-end" /></div>
+                    <div class="form-group"><label>Payment Mode</label>
+                        <select class="form-input" id="p-mode">
+                            <option>Credit Card</option>
+                            <option>UPI</option>
+                            <option>Cash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="closeModal('modal-add-petrol')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Owed Modal -->
+    <div class="modal-overlay" id="modal-add-owed" onclick="closeModalOutside(event, 'modal-add-owed')">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Money Owed Entry</h2>
+                <button class="modal-close" onclick="closeModal('modal-add-owed')">✕</button>
+            </div>
+            <form onsubmit="saveOwedEntry(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>Person's Name *</label><input type="text" class="form-input"
+                            id="owed-name" required /></div>
+                    <div class="form-group"><label>Amount (₹) *</label><input type="number" class="form-input"
+                            id="owed-amount" required /></div>
+                    <div class="form-group"><label>Email (for reminders)</label><input type="email" class="form-input"
+                            id="owed-email" placeholder="person@gmail.com" /></div>
+                    <div class="form-group"><label>Date</label><input type="date" class="form-input" id="owed-date" />
+                    </div>
+                    <div class="form-group full-span"><label>Description *</label><input type="text" class="form-input"
+                            id="owed-desc" placeholder="What for?" required /></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-ghost" onclick="closeModal('modal-add-owed')">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import CSV Modal -->
+    <div class="modal-overlay" id="modal-import" onclick="closeModalOutside(event, 'modal-import')">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Import Transactions</h2>
+                <button class="modal-close" onclick="closeModal('modal-import')">✕</button>
+            </div>
+            <div style="padding:0 0 16px">
+                <p style="color:var(--muted);margin-bottom:16px">Upload a CSV with columns:
+                    <code>Date, Name, Amount, Mode</code><br>(Same format as your Google Sheets tabs)
+                </p>
+                <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file').click()">
+                    <div class="drop-icon">📂</div>
+                    <p>Click to upload or drag & drop</p>
+                    <small>CSV files only</small>
+                    <input type="file" id="csv-file" accept=".csv" style="display:none"
+                        onchange="handleCSVImport(event)" />
+                </div>
+                <div id="import-result" style="margin-top:12px"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Gmail Sync Overlay -->
+    <div class="sync-overlay" id="sync-overlay" style="display:none">
+        <div class="sync-card">
+            <div class="sync-spinner"></div>
+            <p>Syncing Gmail...</p>
+            <small id="sync-progress">Fetching emails...</small>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW registered:', reg.scope))
+                .catch(err => console.warn('SW registration failed:', err));
+        }
+    </script>
+</body>
+
+</html>
