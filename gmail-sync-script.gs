@@ -175,7 +175,12 @@ function syncGmailToSheet() {
   
   // Write new entries to sheet — ONLY UPI/NEFT/IMPS/Cash, NOT Credit Card
   const expenseEntries = newEntries.filter(e => {
-    const isCc = e.mode && e.mode.toLowerCase().includes('credit card');
+    // Make sure we thoroughly catch any variation of 'credit card' mode
+    const isCc = e.mode && (
+      e.mode.toLowerCase().includes('credit card') || 
+      e.mode.toLowerCase().includes('cc') ||
+      e.category === 'Credit Card Spends'
+    );
     if (isCc) Logger.log('⏭ Skipping CC entry (not for expense tab): ' + e.name + ' ₹' + e.amount);
     return !isCc;
   });
@@ -310,26 +315,59 @@ function manualSync() {
   SpreadsheetApp.getUi().alert('Sync complete! Check the ' + CONFIG.EXPENSE_SHEET + ' tab.');
 }
 
+// ── Web App Endpoint ───────────────────────────────────────
+// This allows Artha dashboard to trigger Gmail sync via HTTP GET.
+// Deploy as Web App: Deploy → New Deployment → Web App
+//   Execute as: Me | Who has access: Anyone
+// Then copy the web app URL into Artha Settings.
+function doGet(e) {
+  try {
+    syncGmailToSheet();
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, message: 'Gmail sync complete' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 // ── Menu ───────────────────────────────────────────────────
-// Adds an "Artha" menu to your Google Sheet
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('💰 Artha')
     .addItem('Sync Gmail Now', 'manualSync')
     .addItem('Setup Auto-Sync (every 15 min)', 'setupTrigger')
     .addItem('Remove Auto-Sync', 'removeTrigger')
+    .addItem('Show Web App URL (for Artha)', 'showWebAppUrl')
     .addToUi();
 }
 
+function showWebAppUrl() {
+  const url = ScriptApp.getService().getUrl();
+  if (url) {
+    SpreadsheetApp.getUi().alert(
+      '📋 Your Artha Web App URL:\n\n' + url +
+      '\n\nCopy and paste this into:\nArtha → Settings → Gmail Integration → Web App URL'
+    );
+  } else {
+    SpreadsheetApp.getUi().alert(
+      '⚠️ Not deployed yet!\n\n' +
+      'Go to: Extensions → Apps Script → Deploy → New Deployment\n' +
+      'Type: Web App\n' +
+      'Execute as: Me\n' +
+      'Who has access: Anyone\n\n' +
+      'Then click "Show Web App URL" again.'
+    );
+  }
+}
+
 function setupTrigger() {
-  // Remove existing triggers first
   removeTrigger();
-  
-  // Create new time-based trigger
   ScriptApp.newTrigger('syncGmailToSheet')
     .timeBased()
     .everyMinutes(15)
     .create();
-  
   SpreadsheetApp.getUi().alert(
     '✅ Auto-sync enabled!\n\n' +
     'Gmail will be checked every 15 minutes.\n' +
@@ -346,3 +384,5 @@ function removeTrigger() {
     }
   });
 }
+
+
