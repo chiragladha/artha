@@ -277,9 +277,18 @@ function renderTransactions() {
   document.getElementById('txn-count-label').textContent = `${filteredTxns.length} transactions`;
   const tbody = document.getElementById('txn-tbody');
   const empty = document.getElementById('table-empty');
+  const summaryBar = document.getElementById('txn-summary-bar');
 
-  if (!filteredTxns.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  if (!filteredTxns.length) { tbody.innerHTML = ''; empty.style.display = 'block'; if (summaryBar) summaryBar.style.display = 'none'; return; }
   empty.style.display = 'none';
+
+  // Show sum bar
+  if (summaryBar) {
+    const total = filteredTxns.reduce((s, t) => s + t.amount, 0);
+    document.getElementById('txn-summary-text').textContent = `Showing ${filteredTxns.length} transaction${filteredTxns.length !== 1 ? 's' : ''}`;
+    document.getElementById('txn-summary-total').textContent = `Total: ${fmtAmt(total)}`;
+    summaryBar.style.display = 'flex';
+  }
 
   tbody.innerHTML = filteredTxns.map(t => `
     <tr>
@@ -1279,13 +1288,8 @@ function init() {
   const sinceLastSync = lastSync ? Date.now() - new Date(lastSync).getTime() : Infinity;
   if (sinceLastSync > cooldownMs) {
     setTimeout(() => {
-      showToast('🔄 Syncing with Google Sheets...', 'info');
-      importFromSheets().then(() => {
-        console.log('✅ Auto-sync complete');
-      }).catch(err => {
-        console.warn('Auto-sync failed:', err);
-      });
-    }, 1500); // Delay slightly so UI loads first
+      manualSync();
+    }, 2000); // Delay slightly so UI loads first
   }
 }
 
